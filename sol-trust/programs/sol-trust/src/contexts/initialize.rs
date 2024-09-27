@@ -1,3 +1,4 @@
+use crate::errors::VaultError;
 use crate::state::VaultState;
 use anchor_lang::prelude::*;
 
@@ -23,6 +24,12 @@ pub struct Initialize<'info> {
 
 impl<'info> Initialize<'info> {
     pub fn initialize(&mut self, lock_duration: i64, bumps: &InitializeBumps) -> Result<()> {
+        let min_lock_duration: i64 = 2_592_000; // 2,592,000 seconds ( 1 month )
+
+        if lock_duration < min_lock_duration {
+            return Err(VaultError::TimeTooShort.into());
+        }
+
         self.vault_state.vault_bump = bumps.vault;
         self.vault_state.state_bump = bumps.vault_state;
         self.vault_state.expiration = Clock::get()?.unix_timestamp + lock_duration;

@@ -1,12 +1,14 @@
+use crate::rewards::Rewards;
 use anchor_lang::prelude::*;
 
 pub mod contexts;
 pub mod errors;
 pub mod state;
+pub mod utils;
 
 use contexts::*;
 
-declare_id!("3bUMiDBPPenwzWm8uCQZBchTGckRNCEUBC2tzd1aFBxx");
+declare_id!("BBoAqxz7AfBvtkDgj2XtjG9kMmUEciSg6xmyLCJmzNGY");
 
 #[program]
 pub mod sol_trust {
@@ -27,8 +29,13 @@ pub mod sol_trust {
         Ok(())
     }
 
-    // pub fn cancel(ctx: Context<Cancel>) -> Result<()> {
-    //     ctx.accounts.cancel()?;
-    //     Ok(())
-    // }
+    pub fn mature_close(ctx: Context<MatureClose>) -> Result<()> {
+        ctx.accounts.mature_close()?;
+        Ok(())
+    }
+
+    pub fn rewards(ctx: Context<Rewards>) -> Result<()> {
+        ctx.accounts.rewards()?;
+        Ok(())
+    }
 }

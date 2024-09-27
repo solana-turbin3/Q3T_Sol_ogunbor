@@ -4,3 +4,7 @@ pub mod deposit;
 pub use deposit::*;
 pub mod initialize;
 pub use initialize::*;
+pub mod mature_close;
+pub use mature_close::*;
+pub mod rewards;
+pub use rewards::*;

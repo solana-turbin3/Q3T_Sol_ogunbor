@@ -20,6 +20,9 @@ pub struct PrematureClose<'info> {
         close = user,
     )]
     pub vault_state: Account<'info, VaultState>,
+    /// CHECK: Admin's wallet is used only for transfer purposes and does not require validation.
+    #[account(mut)]
+    pub admin_wallet: UncheckedAccount<'info>, // Admin's wallet public key
     pub system_program: Program<'info, System>,
 }
 
@@ -31,12 +34,24 @@ impl<'info> PrematureClose<'info> {
             *self.user.key,
             VaultError::Unauthorized
         );
+        // Get the current on-chain timestamp
+        let clock = Clock::get()?;
+        let current_timestamp = clock.unix_timestamp;
+
+        require!(
+            current_timestamp < self.vault_state.expiration,
+            VaultError::VaultExpired
+        );
+
+        // Calculate the penalty (10%) and the remaining balance (90%)
+        let penalty_amount = self.vault_state.amount / 10; // 10% penalty
 
         let cpi_program = self.system_program.to_account_info();
 
-        let cpi_accounts = Transfer {
+        // Transfer the penalty amount to the admin wallet
+        let cpi_accounts_admin = Transfer {
             from: self.vault.to_account_info(),
-            to: self.user.to_account_info(),
+            to: self.admin_wallet.to_account_info(),
         };
 
         let seeds = &[
@@ -44,14 +59,23 @@ impl<'info> PrematureClose<'info> {
             self.vault_state.to_account_info().key.as_ref(),
             &[self.vault_state.vault_bump],
         ];
-
         let signer_seeds = &[&seeds[..]];
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
-        // Transfer all SOL in the vault to the user
-        transfer(cpi_ctx, self.vault_state.amount)?;
+        let cpi_ctx_admin =
+            CpiContext::new_with_signer(cpi_program.clone(), cpi_accounts_admin, signer_seeds);
 
-        // User loses accumulated tokens if closing before expiration
+        transfer(cpi_ctx_admin, penalty_amount)?;
+
+        // Transfer the remaining to the user and close the account
+        let cpi_accounts_user = Transfer {
+            from: self.vault.to_account_info(),
+            to: self.user.to_account_info(),
+        };
+
+        let cpi_ctx_user =
+            CpiContext::new_with_signer(cpi_program, cpi_accounts_user, signer_seeds);
+
+        transfer(cpi_ctx_user, self.vault.to_account_info().lamports())?;
 
         Ok(())
     }

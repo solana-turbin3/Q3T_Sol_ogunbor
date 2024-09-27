@@ -1,3 +1,4 @@
+use crate::errors::VaultError;
 use crate::state::VaultState;
 use anchor_lang::prelude::*;
 use anchor_lang::system_program::{transfer, Transfer};
@@ -22,6 +23,13 @@ pub struct Deposit<'info> {
 
 impl<'info> Deposit<'info> {
     pub fn deposit(&mut self, amount: u64) -> Result<()> {
+        let min_deposit: u64 = 1_000_000_000; //( 1 sol )
+
+        // Ensure the deposit amount is at least 1 SOL
+        if amount < min_deposit {
+            return Err(VaultError::DepositTooSmall.into());
+        }
+
         let cpi_program = self.system_program.to_account_info();
 
         let cpi_accounts = Transfer {
